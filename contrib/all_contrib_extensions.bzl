@@ -23,4 +23,4 @@ PPC_SKIP_CONTRIB_TARGETS = [
 ]
 
 def envoy_all_contrib_extensions(denylist = []):
-    return [v + "_envoy_extension" for k, v in CONTRIB_EXTENSIONS.items() if not k in denylist]
+    return []

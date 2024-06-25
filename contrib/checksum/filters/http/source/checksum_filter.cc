@@ -87,7 +87,7 @@ bool ChecksumFilter::checksumMatched() {
   ASSERT(expected_checksum_.has_value());
   uint8_t checksum_buffer[SHA256_DIGEST_LENGTH];
   SHA256_Final(checksum_buffer, &sha_);
-  OPENSSL_cleanse(&sha_, sizeof(sha_));
+  ossl_OPENSSL_cleanse(&sha_, sizeof(sha_));
   return absl::string_view{reinterpret_cast<const char*>(&(*expected_checksum_)[0]),
                            expected_checksum_->size()} ==
          absl::string_view{reinterpret_cast<const char*>(checksum_buffer), sizeof(checksum_buffer)};

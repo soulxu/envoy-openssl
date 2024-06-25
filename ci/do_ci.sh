@@ -845,7 +845,7 @@ case $CI_TARGET in
         bazel build "${BAZEL_BUILD_OPTIONS[@]}" \
               "${BAZEL_RELEASE_OPTIONS[@]}" \
               --remote_download_outputs=toplevel \
-              //distribution/binary:release
+              //distribution/binary:release --sandbox_debug --subcommands
         # Copy release binaries to binary export directory
         cp -a \
            "bazel-bin/distribution/binary/release.tar.zst" \

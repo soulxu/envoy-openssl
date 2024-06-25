@@ -180,7 +180,7 @@ ssl_private_key_result_t rsaPrivateKeySignInternal(CryptoMbPrivateKeyConnection*
       return status;
     }
 
-    if (!RSA_padding_add_PKCS1_PSS_mgf1(rsa.get(), msg, hash, md, nullptr, -1)) {
+    if (!ossl_RSA_padding_add_PKCS1_PSS_mgf1(rsa.get(), msg, hash, md, nullptr, -1)) {
       OPENSSL_free(msg);
       return status;
     }

@@ -14,6 +14,8 @@ trap 'rm -rf -- "$SCRATCH_DIR"' EXIT
 docker build --pull --iidfile "${SCRATCH_DIR}/iid" -f - "${SCRATCH_DIR}" << EOF
     FROM $(./ci/run_envoy_docker.sh 'echo $ENVOY_BUILD_IMAGE')
 
+    ENV http_proxy=http://child-prc.intel.com:912
+    ENV https_proxy=http://child-prc.intel.com:912
     # Install the missing Kitware public key
     RUN wget -qO- https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor - > /usr/share/keyrings/kitware-archive-keyring.gpg
     RUN sed -i "s|^deb.*kitware.*$|deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ \$(lsb_release -cs) main|g" /etc/apt/sources.list
@@ -38,6 +40,9 @@ export ENVOY_STDLIB=libstdc++
 # Tell the upstream run_envoy_docker.sh script to us our builder image
 export IMAGE_NAME=$(cat "${SCRATCH_DIR}/iid" | cut -d ":" -f 1)
 export IMAGE_ID=$(cat "${SCRATCH_DIR}/iid" | cut -d ":" -f 2)
+
+export http_proxy=http://child-prc.intel.com:912
+export https_proxy=http://child-prc.intel.com:912
 
 # Hand off to the upstream run_envoy_docker.sh script
 exec ./ci/run_envoy_docker.sh "$@"
