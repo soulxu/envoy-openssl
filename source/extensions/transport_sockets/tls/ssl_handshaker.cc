@@ -8,6 +8,8 @@
 #include "source/common/runtime/runtime_features.h"
 #include "source/extensions/transport_sockets/tls/utility.h"
 
+#include <ext/openssl/ssl.h>
+
 using Envoy::Network::PostIoAction;
 
 namespace Envoy {
@@ -78,6 +80,9 @@ bool SslHandshakerImpl::peerCertificateValidated() const {
 
 Network::PostIoAction SslHandshakerImpl::doHandshake() {
   ASSERT(state_ != Ssl::SocketState::HandshakeComplete && state_ != Ssl::SocketState::ShutdownSent);
+
+  //ENVOY_LOG_MISC(debug, "###### {}", ossl_SSL_get_mode(ssl()));
+
   int rc = SSL_do_handshake(ssl());
   if (rc == 1) {
     state_ = Ssl::SocketState::HandshakeComplete;
@@ -88,9 +93,11 @@ Network::PostIoAction SslHandshakerImpl::doHandshake() {
                ? PostIoAction::KeepOpen
                : PostIoAction::Close;
   } else {
+    ossl_OSSL_ASYNC_FD* fds;
+    size_t numfds;
     int err = SSL_get_error(ssl(), rc);
-    ENVOY_CONN_LOG(trace, "ssl error occurred while read: {}", handshake_callbacks_->connection(),
-                   Utility::getErrorDescription(err));
+    //ENVOY_CONN_LOG(trace, "ssl error occurred while read: {}", handshake_callbacks_->connection(),
+    //               Utility::getErrorDescription(err));
     switch (err) {
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
@@ -99,10 +106,66 @@ Network::PostIoAction SslHandshakerImpl::doHandshake() {
     // case SSL_ERROR_WANT_CERTIFICATE_VERIFY:
     //   state_ = Ssl::SocketState::HandshakeInProgress;
     //   return PostIoAction::KeepOpen;
+    case ossl_SSL_ERROR_WANT_ASYNC:
+      ENVOY_CONN_LOG(debug, "SSL handshake: request async handling", handshake_callbacks_->connection());
+
+      if (state_ == Ssl::SocketState::HandshakeInProgress) {
+        return PostIoAction::KeepOpen;
+      }
+
+      state_ = Ssl::SocketState::HandshakeInProgress;
+
+      rc = ossl_SSL_get_all_async_fds(ssl_.get(), NULL, &numfds);
+      if (rc == 0) {
+        handshake_callbacks_->onFailure();
+        return PostIoAction::Close;
+      }
+
+      /* We only wait for the first fd here! Will fail if multiple async engines. */
+      if (numfds != 1) {
+        ENVOY_LOG(error, "Only one async OpenSSL engine is supported currently");
+        handshake_callbacks_->onFailure();
+        return PostIoAction::Close;
+      }
+
+      fds = static_cast<ossl_OSSL_ASYNC_FD*>(malloc(numfds * sizeof(ossl_OSSL_ASYNC_FD)));
+      if (fds == NULL) {
+        handshake_callbacks_->onFailure();
+        return PostIoAction::Close;
+      }
+
+      rc = ossl_SSL_get_all_async_fds(ssl_.get(), fds, &numfds);
+      if (rc == 0) {
+        free(fds);
+        handshake_callbacks_->onFailure();
+        return PostIoAction::Close;
+      }
+
+      file_event_ = handshake_callbacks_->connection().dispatcher().createFileEvent(
+          fds[0], [this](uint32_t /* events */) -> void { asyncCb(); },
+          Event::FileTriggerType::Edge, Event::FileReadyType::Read);
+      ENVOY_CONN_LOG(debug, "SSL async fd: {}, numfds: {}", handshake_callbacks_->connection(), fds[0],
+                     numfds);
+      free(fds);
+      return PostIoAction::KeepOpen;
     default:
       handshake_callbacks_->onFailure();
       return PostIoAction::Close;
     }
+  }
+}
+
+void SslHandshakerImpl::asyncCb() {
+  ENVOY_CONN_LOG(debug, "SSL async done!", handshake_callbacks_->connection());
+
+  ASSERT(state_ != Ssl::SocketState::HandshakeComplete);
+  // We lose the return value here, so might consider propagating it with an event
+  // in case we run into "Close" result from the handshake handler.
+  PostIoAction action = doHandshake();
+  if (action == PostIoAction::Close) {
+    ENVOY_CONN_LOG(debug, "async handshake completion error", handshake_callbacks_->connection());
+    handshake_callbacks_->onFailure();
+    handshake_callbacks_->connection().close(Network::ConnectionCloseType::FlushWrite);
   }
 }
 

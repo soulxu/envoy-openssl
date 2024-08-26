@@ -17,7 +17,7 @@ else()
     ExternalProject_Add(OpenSSL
         SOURCE_DIR ${OPENSSL_SOURCE_DIR}
         DOWNLOAD_COMMAND curl -o ${CMAKE_CURRENT_BINARY_DIR}/openssl/openssl-3.0.13.tar.gz -L -x "http://child-prc.intel.com:912" "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.0.13.tar.gz" && tar -xzvf ${CMAKE_CURRENT_BINARY_DIR}/openssl/openssl-3.0.13.tar.gz --strip-components=1 -C ${CMAKE_CURRENT_BINARY_DIR}/openssl/source
-        CONFIGURE_COMMAND ${OPENSSL_CONFIG_CMD} --prefix=${OPENSSL_INSTALL_DIR} --libdir=lib
+        CONFIGURE_COMMAND ${OPENSSL_CONFIG_CMD} --prefix=${OPENSSL_INSTALL_DIR} --libdir=lib -DOPENSSL_INIT_DEBUG
         TEST_COMMAND ""
         INSTALL_COMMAND make install_sw
         # LOG_DOWNLOAD ON

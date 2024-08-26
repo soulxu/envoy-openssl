@@ -87,6 +87,7 @@ absl::Status SslSocket::initialize(InitialState state,
   if (!status_or_ssl.ok()) {
     return status_or_ssl.status();
   }
+  
 
   info_ = std::dynamic_pointer_cast<SslHandshakerImpl>(handshaker_factory_cb(
       std::move(status_or_ssl.value()), ctx_->sslExtendedSocketInfoIndex(), this));
@@ -97,6 +98,8 @@ absl::Status SslSocket::initialize(InitialState state,
     ASSERT(state == InitialState::Server);
     SSL_set_accept_state(rawSsl());
   }
+
+  ossl_SSL_set_mode(rawSsl(), ossl_SSL_MODE_ASYNC);
 
   return absl::OkStatus();
 }

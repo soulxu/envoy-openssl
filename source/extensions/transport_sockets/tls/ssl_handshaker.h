@@ -104,10 +104,13 @@ public:
   bssl::UniquePtr<SSL> ssl_;
 
 private:
+  void asyncCb();
+
   Ssl::HandshakeCallbacks* handshake_callbacks_;
 
   Ssl::SocketState state_{Ssl::SocketState::PreHandshake};
   mutable SslExtendedSocketInfoImpl extended_socket_info_;
+  Event::FileEventPtr file_event_;
 };
 
 using SslHandshakerImplSharedPtr = std::shared_ptr<SslHandshakerImpl>;

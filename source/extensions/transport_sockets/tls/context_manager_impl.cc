@@ -15,7 +15,12 @@ namespace Extensions {
 namespace TransportSockets {
 namespace Tls {
 
-ContextManagerImpl::ContextManagerImpl(TimeSource& time_source) : time_source_(time_source) {}
+ContextManagerImpl::ContextManagerImpl(TimeSource& time_source) : time_source_(time_source) {
+  ENVOY_LOG_MISC(debug, "############## openssl init");
+  if (!OPENSSL_init_ssl(0x00000040L, nullptr)) {
+    ENVOY_LOG_MISC(error, "######### init openssl failed");
+  }
+}
 
 Envoy::Ssl::ClientContextSharedPtr
 ContextManagerImpl::createSslClientContext(Stats::Scope& scope,
